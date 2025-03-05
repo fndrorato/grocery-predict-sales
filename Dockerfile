@@ -2,7 +2,7 @@
 FROM ubuntu:22.04
 
 # Instalar dependências do sistema
-RUN apt-get update && apt-get upgrade
+RUN apt update && apt install -y python3 python3-pip gcc python3-dev libpq-dev
 
 # Definir o diretório de trabalho
 WORKDIR /app
