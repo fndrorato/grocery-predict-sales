@@ -5,16 +5,14 @@ FROM python:3.12.3-slim
 WORKDIR /app
 
 # Desabilitar o script Post-Invoke do APT
-RUN rm -f /etc/apt/apt.conf.d/docker-clean && \
-    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
-
-# Atualizar e instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
     libpq-dev \
     --no-install-recommends && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
 
 # Copiar os arquivos de requisitos
 COPY requirements.txt .
