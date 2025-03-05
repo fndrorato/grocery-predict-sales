@@ -7,6 +7,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Definir o diretório de trabalho
 WORKDIR /app
 
+# Desabilitar o script Post-Invoke do APT
+RUN rm -f /etc/apt/apt.conf.d/docker-clean && \
+    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
 # Atualizar o sistema e instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
     build-essential \
