@@ -23,14 +23,11 @@ RUN apt-get update && apt-get install -y \
 # Copiar os arquivos de requisitos
 COPY requirements.txt .
 
-# Instalar as dependências do Python
-RUN pip install --no-cache-dir -r requirements.txt
-
 # Copiar o restante dos arquivos do projeto
 COPY . .
 
 # Expor a porta que a aplicação vai rodar
 EXPOSE 8050
 
-# Comando para rodar a aplicação
-CMD ["gunicorn", "-b", "0.0.0.0:8050", "app:server"]
+# Comando padrão (pode ser substituído ao rodar o contêiner)
+CMD ["bash"]
