@@ -7,8 +7,10 @@ WORKDIR /app
 # Copiar os arquivos de requisitos
 COPY requirements.txt .
 
+RUN pip install --no-cache-dir --upgrade pip
+
 # Instalar as dependências
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --no-use-pep517 -r requirements.txt
 
 # Copiar o restante dos arquivos do projeto
 COPY . .
