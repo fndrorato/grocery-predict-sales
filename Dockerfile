@@ -4,13 +4,17 @@ FROM python:3.12.3-slim
 # Definir o diretório de trabalho
 WORKDIR /app
 
+# Desabilitar o script Post-Invoke do APT
+RUN rm -f /etc/apt/apt.conf.d/docker-clean && \
+    echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
+# Atualizar e instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
     libpq-dev \
-    --no-install-recommends 
-
-RUN rm -rf /var/lib/apt/lists/*
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copiar os arquivos de requisitos
 COPY requirements.txt .
