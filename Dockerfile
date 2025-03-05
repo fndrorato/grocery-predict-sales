@@ -2,13 +2,13 @@
 FROM ubuntu:22.04
 
 # Instalar dependências do sistema
-RUN apt update && apt install -y \
-    python3 \
-    python3-pip \
+RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
     libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+    --no-install-recommends 
+
+RUN rm -rf /var/lib/apt/lists/*
 
 # Definir o diretório de trabalho
 WORKDIR /app
