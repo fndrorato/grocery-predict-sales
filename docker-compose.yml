@@ -1,0 +1,6 @@
+services:
+  box_service:
+    build: .
+    ports:
+      - 8050:8050
+    restart: always
