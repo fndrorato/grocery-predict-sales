@@ -1,5 +1,8 @@
+version: '0.1'
+
 services:
   box_service:
+    container_name: box_dashboard
     build: .
     ports:
       - 8050:8050
