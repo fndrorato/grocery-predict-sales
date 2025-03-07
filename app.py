@@ -35,6 +35,7 @@ def get_sidebar():
             dbc.Nav(
                 [
                     dbc.NavLink("Dashboard", href="/dashboard", active="exact"),
+                    dbc.NavLink("Vendas por Fornecedor", href="/supplier_sales", active="exact"),
                     dbc.NavLink("Previsão de Vendas", href="/predict_sales", active="exact"),
                     html.Div(id="logout-section"),
                 ],
