@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+from utils.functions import calculate_abc
 from datetime import datetime
 
 
@@ -30,6 +31,16 @@ df_proveedor = pd.read_csv(
 
 # Remove duplicados com base na coluna 'cod_proveedor', mantendo a última ocorrência
 df_proveedor = df_proveedor.drop_duplicates(subset=['proveedor_id'], keep='last')
+
+df_item = pd.read_csv(
+    "data/items.csv",
+    usecols=[
+        "codigo",
+        "descripcion",
+    ],
+)
+
+df_item = df_item.drop_duplicates(subset=['codigo'])
 
 df_sales = pd.read_csv(
     "data/sales_proveedor.csv",
@@ -176,83 +187,69 @@ layout = dbc.Container(
                     ]
                 ),
                 html.Br(),
+                # Modal para exibir os produtos do fornecedor selecionado
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader(dbc.ModalTitle("Produtos do Fornecedor"), close_button=True),
+                        dbc.ModalBody(
+                            dcc.Loading(
+                                id="loading-products-modal",
+                                children=dash_table.DataTable(
+                                    id="products-table",
+                                    columns=[
+                                        {"name": "Código", "id": "codigo"},
+                                        {"name": "Descripción", "id": "descripcion"},
+                                        {"name": "Categoria", "id": "categoria"},
+                                        {"name": "Subcategoria", "id": "subcategoria"},
+                                        {"name": "Total de Vendas", "id": "total_vendas"},
+                                        {"name": "Quantidade Vendida", "id": "quantidade_vendida"},
+                                    ],                                    
+                                    style_table={"overflowX": "auto"},
+                                    style_data_conditional=[
+                                        {"if": {"column_id": "codigo"}, "textAlign": "center"},  # Centraliza a coluna "Código"
+                                        {"if": {"column_id": "descripcion"}, "textAlign": "left"},  # Alinha à esquerda
+                                        {"if": {"column_id": "categoria"}, "textAlign": "left"},  # Alinha à esquerda
+                                        {"if": {"column_id": "subcategoria"}, "textAlign": "left"},  # Alinha à esquerda
+                                        {"if": {"column_id": "total_vendas"}, "textAlign": "right"},  # Alinha à direita
+                                        {"if": {"column_id": "quantidade_vendida"}, "textAlign": "right"},  # Alinha à direita
+                                    ],                                    
+                                    style_cell={
+                                        "fontFamily": "Inter, sans-serif",
+                                        "fontSize": "14px",
+                                        "padding": "5px",
+                                        "border": "1px solid #ececec",
+                                        "whiteSpace": "normal",
+                                        "overflow": "hidden",
+                                        "textOverflow": "ellipsis",
+                                    },
+                                    style_header={
+                                        "fontFamily": "Inter, sans-serif",
+                                        "fontSize": "14px",
+                                        "textAlign": "center",
+                                        "fontWeight": "bold",
+                                        "color": "#3a4552",
+                                        "backgroundColor": "#f7f7f7",
+                                    },
+                                ),
+                                type="circle",
+                                color="#1f3990",
+                            )
+                        ),
+                        dbc.ModalFooter(
+                            dbc.Button("Fechar", id="close-products-modal", className="ms-auto", n_clicks=0)
+                        ),
+                    ],
+                    id="products-modal",
+                    is_open=False,  # O modal começa fechado
+                    size="lg",  # Tamanho grande para acomodar a tabela 
+                    style={"maxWidth": "90% !important", "width": "90% !important"}  ,  # Ajusta a largura do modal
+                ),              
             ],
             className="page-content",
         )
     ],
     fluid=True,
 )
-
-# Função para calcular a classificação ABC
-def calculate_abc(df, start_date, end_date):
-    # Calcula o mesmo período do ano anterior
-    previous_start_date = start_date - pd.DateOffset(years=1)
-    previous_end_date = end_date - pd.DateOffset(years=1)
-
-    # Filtra os dados para o período atual
-    current_period = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
-
-    # Filtra os dados para o mesmo período do ano anterior
-    previous_period = df[(df["date"] >= previous_start_date) & (df["date"] <= previous_end_date)]
-
-    # Agrupa por fornecedor e calcula:
-    # - Total de vendas no período atual
-    # - Contagem de códigos únicos no período atual
-    current_sales = (
-        current_period.groupby(["proveedor_id", "proveedor"])
-        .agg(
-            total_current=("total", "sum"),  # Total de vendas no período atual
-            unique_codes_current=("codigo", "nunique")  # Contagem de códigos únicos no período atual
-        )
-        .reset_index()
-    )
-
-    # Agrupa por fornecedor e calcula o total de vendas no período anterior
-    previous_sales = (
-        previous_period.groupby(["proveedor_id", "proveedor"])
-        .agg(total_previous=("total", "sum"))  # Total de vendas no período anterior
-        .reset_index()
-    )
-
-    # Combina os dados do período atual e do período anterior
-    sales_by_supplier = pd.merge(current_sales, previous_sales, on=["proveedor_id", "proveedor"], how="left")
-
-    # Preenche valores NaN com 0 para fornecedores sem vendas no período anterior
-    sales_by_supplier["total_previous"] = sales_by_supplier["total_previous"].fillna(0)
-
-    # Calcula o crescimento percentual
-    sales_by_supplier["growth_percentage"] = (
-        (sales_by_supplier["total_current"] - sales_by_supplier["total_previous"]) / sales_by_supplier["total_previous"]
-    ) * 100
-    sales_by_supplier["growth_percentage"] = sales_by_supplier["growth_percentage"].fillna(0)  # Substitui NaN por 0
-
-    # Ordena os fornecedores pelo total de vendas no período atual em ordem decrescente
-    sales_by_supplier = sales_by_supplier.sort_values(by="total_current", ascending=False)
-
-    # Adiciona a coluna de posição (ranking)
-    sales_by_supplier["posicao"] = range(1, len(sales_by_supplier) + 1)
-
-    # Calcula a porcentagem de vendas sobre o total no período atual
-    total_sales_current = sales_by_supplier["total_current"].sum()
-    sales_by_supplier["percentage_of_total"] = (sales_by_supplier["total_current"] / total_sales_current) * 100
-
-    # Calcula a porcentagem acumulada
-    sales_by_supplier["cumulative_percentage"] = (
-        sales_by_supplier["total_current"].cumsum() / total_sales_current * 100
-    )
-
-    # Classifica os fornecedores como A, B ou C usando numpy.select
-    conditions = [
-        (sales_by_supplier["cumulative_percentage"] <= 70),
-        (sales_by_supplier["cumulative_percentage"] > 70) & (sales_by_supplier["cumulative_percentage"] <= 90),
-        (sales_by_supplier["cumulative_percentage"] > 90)
-    ]
-    choices = ["A", "B", "C"]
-    sales_by_supplier["classificacao"] = np.select(conditions, choices, default="C")
-    
-    print(sales_by_supplier.columns)
-
-    return sales_by_supplier
 
 @callback(
     [
@@ -261,14 +258,22 @@ def calculate_abc(df, start_date, end_date):
     ],
     [
         Input("gerar-previsao-btn", "n_clicks"),
-        Input("proveedor-dropdown", "value"),
-        Input("data-inicial", "date"),
-        Input("data-final", "date"),
+        Input("data-inicial", "n_submit"),  # Detecta Enter no campo de data inicial
+        Input("data-final", "n_submit"),    # Detecta Enter no campo de data final
+    ],
+    [
+        State("proveedor-dropdown", "value"),
+        State("data-inicial", "date"),
+        State("data-final", "date"),
     ],
 )
-def update_dashboard(n_clicks, selected_supplier, start_date, end_date):
-    if not n_clicks:
-        return {}, [],
+def update_dashboard(n_clicks, submit_initial, submit_final, selected_supplier, start_date, end_date):
+    # Verifica se algum dos eventos foi acionado
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return {}, []
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     # Converte datas para datetime
     start_date = pd.to_datetime(start_date)
@@ -291,9 +296,15 @@ def update_dashboard(n_clicks, selected_supplier, start_date, end_date):
     abc_data_for_table["growth_percentage"] = abc_data_for_table["growth_percentage"].apply(lambda x: f"{x:.2f}%" if x != 0 else "-")
     abc_data_for_table["percentage_of_total"] = abc_data_for_table["percentage_of_total"].apply(lambda x: f"{x:.2f}%")
     abc_data_for_table["cumulative_percentage"] = abc_data_for_table["cumulative_percentage"].apply(lambda x: f"{x:.2f}%")
+    # Adiciona uma coluna com botões na tabela ABC
+    abc_data_for_table["view_button"] = abc_data_for_table.apply(
+        lambda row: f"[+]",  # Cria um link com o nome do fornecedor como identificador
+        axis=1,
+    )
 
     # Cria a tabela ABC com o estilo personalizado
     table = dash_table.DataTable(
+        id="abc-table",
         columns=[
             {"name": "Posição", "id": "posicao"},
             {"name": "Fornecedor", "id": "proveedor"},
@@ -304,22 +315,24 @@ def update_dashboard(n_clicks, selected_supplier, start_date, end_date):
             {"name": "% Acumulada", "id": "cumulative_percentage"},
             {"name": "Códigos Únicos", "id": "unique_codes_current"},
             {"name": "Classificação", "id": "classificacao"},
+            {"name": "Ver", "id": "view_button", "presentation": "markdown"},  # Nova coluna com botões
         ],
         data=abc_data_for_table.to_dict("records"),
         style_table={"overflowX": "auto"},
-        # 🔹 Alinhamento por coluna
+        # Alinhamento por coluna
         style_data_conditional=[
             {"if": {"column_id": "posicao"}, "textAlign": "center"},
-            {"if": {"column_id": "proveedor"}, "textAlign": "left"},  # Alinha à esquerda
+            {"if": {"column_id": "proveedor"}, "textAlign": "left"},
             {"if": {"column_id": "total_current"}, "textAlign": "right"},  # Alinha à direita
             {"if": {"column_id": "total_previous"}, "textAlign": "right"},  # Alinha à direita
-            {"if": {"column_id": "growth_percentage"}, "textAlign": "right"},  # Alinha à direita
-            {"if": {"column_id": "percentage_of_total"}, "textAlign": "right"},  # Alinha à direita
-            {"if": {"column_id": "cumulative_percentage"}, "textAlign": "right"},  # Alinha à direita
-            {"if": {"column_id": "unique_codes_current"}, "textAlign": "right"},  # Alinha à direita
-            {"if": {"column_id": "classificacao"}, "textAlign": "center"},  # Centraliza
+            {"if": {"column_id": "growth_percentage"}, "textAlign": "right"},
+            {"if": {"column_id": "percentage_of_total"}, "textAlign": "right"},
+            {"if": {"column_id": "cumulative_percentage"}, "textAlign": "right"},
+            {"if": {"column_id": "unique_codes"}, "textAlign": "right"},
+            {"if": {"column_id": "classificacao"}, "textAlign": "center"},
+            {"if": {"column_id": "view_button"}, "textAlign": "center"},  # Centraliza os botões
         ],
-        # 🔹 Estilos gerais da célula
+        # Estilos gerais da célula
         style_cell={
             "fontFamily": "Inter, sans-serif",
             "fontSize": "14px",
@@ -329,14 +342,14 @@ def update_dashboard(n_clicks, selected_supplier, start_date, end_date):
             "overflow": "hidden",
             "textOverflow": "ellipsis",
         },
-        # 🔹 Estilos do cabeçalho
+        # Estilos do cabeçalho
         style_header={
             "fontFamily": "Inter, sans-serif",
             "fontSize": "14px",
             "textAlign": "center",
             "fontWeight": "bold",
             "color": "#3a4552",
-            "backgroundColor": "#f7f7f7",  # Fundo claro para o cabeçalho
+            "backgroundColor": "#f7f7f7",
         },
     )    
 
@@ -373,3 +386,71 @@ def update_dashboard(n_clicks, selected_supplier, start_date, end_date):
         abc_chart,
         table,  # Retorna a tabela formatada para a div "top10-menores-vendas"
     )
+
+@callback(
+    [
+        Output("products-modal", "is_open"),  # Controla a visibilidade do modal
+        Output("products-table", "data"),  # Dados da tabela de produtos
+    ],
+    [
+        Input("abc-table", "active_cell"),  # Detecta cliques nas células da tabela ABC
+        Input("close-products-modal", "n_clicks"),  # Fecha o modal
+    ],
+    [
+        State("products-modal", "is_open"),  # Estado atual do modal
+        State("abc-table", "data"),  # Dados da tabela ABC
+    ],
+)
+def open_products_modal(active_cell, close_clicks, is_open, abc_table_data):
+    ctx = dash.callback_context
+
+    # Verifica qual input disparou o callback
+    if not ctx.triggered:
+        return False, []
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    # Fecha o modal se o botão "Fechar" for clicado
+    if trigger_id == "close-products-modal":
+        return False, []
+
+    # Verifica se uma célula foi clicada e se é a coluna "Ver"
+    if active_cell and active_cell["column_id"] == "view_button":
+        # Obtém o nome do fornecedor clicado
+        selected_supplier = abc_table_data[active_cell["row"]]["proveedor"]
+
+        # Filtra os dados dos produtos vendidos pelo fornecedor
+        supplier_products = df_sales[df_sales["proveedor"] == selected_supplier]
+        supplier_products_summary = (
+            supplier_products.groupby(["codigo", "categoria", "subcategoria", "cat_nivel3"])
+            .agg(
+                total_vendas=("total", "sum"),
+                quantidade_vendida=("qty", "sum"),
+            )
+            .reset_index()
+        )
+        
+        # Ordena os produtos pelo total de vendas em ordem decrescente
+        supplier_products_summary = supplier_products_summary.sort_values(by="total_vendas", ascending=False)
+        
+        # Faz o merge com df_item para adicionar a coluna 'descripcion'
+        supplier_products_summary = supplier_products_summary.merge(
+            df_item, on="codigo", how="left"
+        )        
+        
+        # Formata os dados para exibição
+        supplier_products_summary["total_vendas"] = supplier_products_summary["total_vendas"].apply(
+            lambda x: f"₲ {x:,.0f}"
+        )
+        supplier_products_summary["quantidade_vendida"] = supplier_products_summary["quantidade_vendida"].apply(
+            lambda x: f"{x:,}"
+        )
+
+        # Converte os dados para o formato da tabela
+        products_data = supplier_products_summary.to_dict("records")
+
+        # Abre o modal e retorna os dados
+        return True, products_data
+
+    # Caso contrário, mantém o modal fechado
+    return False, []

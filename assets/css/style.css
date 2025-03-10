@@ -78,6 +78,13 @@
     }
 }
 
+@media (min-width: 576px) {
+
+    .modal-dialog {
+        width: 1024px !important;
+    }
+}
+
 .sidebar-logo {
     margin-top: 1rem;
     /* display: flex; */
@@ -243,4 +250,10 @@
 .bs-tooltip-end .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^=right] .tooltip-arrow::before {
     border-right-color: #211F1F;
+}
+
+.custom-modal .modal-dialog {
+    max-width: none !important;
+    width: 90% !important;
+    margin: 2rem auto; /* Margem vertical de 2rem e centralizado horizontalmente */
 }

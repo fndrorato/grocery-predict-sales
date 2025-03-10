@@ -2,3 +2,7 @@ venv/
 data/
 modelos/
 Arquivo.zip
+filtrar_modelos.py
+modelos_filter/
+*.pyc
+__pycache__/
